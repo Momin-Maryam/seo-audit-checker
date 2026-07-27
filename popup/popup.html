@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SEO Audit Checker</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-name">SEO Audit Checker</span>
+      </div>
+      <span class="brand-tag">on-page health check</span>
+    </header>
+
+    <!-- Score + Run -->
+    <section class="score-panel">
+      <div class="dial" id="scoreDial">
+        <svg viewBox="0 0 120 120" class="dial-svg">
+          <circle class="dial-track" cx="60" cy="60" r="52"></circle>
+          <circle class="dial-progress" id="dialProgress" cx="60" cy="60" r="52"></circle>
+        </svg>
+        <div class="dial-center">
+          <span class="dial-score" id="scoreValue">--</span>
+          <span class="dial-label">score</span>
+        </div>
+      </div>
+
+      <div class="score-side">
+        <div class="score-summary" id="scoreSummary">
+          Run an audit to see how this page scores.
+        </div>
+        <button class="btn-run" id="runAuditBtn">
+          <span class="btn-run-icon">▶</span> Run Audit
+        </button>
+      </div>
+    </section>
+
+    <!-- Category: Meta Tags -->
+    <section class="category" data-category="meta">
+      <button class="category-header">
+        <span class="category-title">
+          <span class="category-icon meta-icon"></span>
+          Meta Tags
+        </span>
+        <span class="category-count" data-count="meta">-- checks</span>
+        <span class="chevron">⌄</span>
+      </button>
+      <div class="category-body">
+        <div class="check-row">
+          <span class="badge badge-pending"></span>
+          <span class="check-text">Meta title present &amp; unique</span>
+        </div>
+        <div class="check-row">
+          <span class="badge badge-pending"></span>
+          <span class="check-text">Meta description present &amp; unique</span>
+        </div>
+        <div class="check-row">
+          <span class="badge badge-pending"></span>
+          <span class="check-text">Canonical tag present</span>
+        </div>
+        <div class="check-row">
+          <span class="badge badge-pending"></span>
+          <span class="check-text">Robots meta tag status</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Category: Headings -->
+    <section class="category" data-category="headings">
+      <button class="category-header">
+        <span class="category-title">
+          <span class="category-icon headings-icon"></span>
+          Headings
+        </span>
+        <span class="category-count" data-count="headings">-- checks</span>
+        <span class="chevron">⌄</span>
+      </button>
+      <div class="category-body">
+        <div class="check-row">
+          <span class="badge badge-pending"></span>
+          <span class="check-text">Exactly one H1 present</span>
+        </div>
+        <div class="check-row">
+          <span class="badge badge-pending"></span>
+          <span class="check-text">No skipped heading levels</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Category: Images -->
+    <section class="category" data-category="images">
+      <button class="category-header">
+        <span class="category-title">
+          <span class="category-icon images-icon"></span>
+          Images
+        </span>
+        <span class="category-count" data-count="images">-- checks</span>
+        <span class="chevron">⌄</span>
+      </button>
+      <div class="category-body">
+        <div class="check-row">
+          <span class="badge badge-pending"></span>
+          <span class="check-text">All images have alt text</span>
+        </div>
+        <div class="check-row">
+          <span class="badge badge-pending"></span>
+          <span class="check-text">No broken images</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Category: Links -->
+    <section class="category" data-category="links">
+      <button class="category-header">
+        <span class="category-title">
+          <span class="category-icon links-icon"></span>
+          Links
+        </span>
+        <span class="category-count" data-count="links">-- checks</span>
+        <span class="chevron">⌄</span>
+      </button>
+      <div class="category-body">
+        <div class="check-row">
+          <span class="badge badge-pending"></span>
+          <span class="check-text">No broken links on page</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page info footer -->
+    <section class="page-info" id="pageInfo">
+      <div class="page-info-item">
+        <span class="page-info-label">Word count</span>
+        <span class="page-info-value" id="wordCount">--</span>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>SEO Audit Checker · v1.0</span>
+    </footer>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "SEO Audit Checker",
+  "version": "1.0.0",
+  "description": "One-click on-page SEO health check: meta tags, headings, images, and broken links for any page.",
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Run an SEO audit on this page"
+  },
+  "permissions": ["activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/analyzer.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

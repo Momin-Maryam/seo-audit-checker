@@ -1,15 +1,96 @@
-// popup.js — Step 6: all four categories (Meta Tags, Headings, Images,
-// Links) wired to real page analysis. No more placeholder/demo data.
+// popup.js — Step 12: one-click Fix suggestions added on top of the
+// completed core audit (all four categories still wired to real analysis).
 
 const META_CHECK_ORDER = ["title", "description", "canonical", "robots"];
 const HEADINGS_CHECK_ORDER = ["h1Count", "skippedLevels"];
 const IMAGES_CHECK_ORDER = ["altText", "broken"];
 const LINKS_CHECK_ORDER = ["links"];
 
+// Static "why + suggested fix" templates per check, keyed by
+// category.checkKey.state. No AI involved — just hardcoded SEO guidance.
+// Only fail/warn entries exist; "pass" never needs a fix.
+const FIX_SUGGESTIONS = {
+  meta: {
+    title: {
+      fail: {
+        why: "Google uses the title tag as the clickable headline in search results and the browser tab. Without one, Google auto-generates something from the page — usually worse than a written title.",
+        suggested: '<title>Primary Keyword – Brand Name | Short Value Prop</title>',
+      },
+      warn: {
+        why: "A missing, generic, or overly long title hurts click-through rate — long titles get truncated in search results.",
+        suggested: 'Keep it under 60 characters, lead with the primary keyword, e.g. "Buy Running Shoes Online – Free Delivery | BrandName"',
+      },
+    },
+    description: {
+      fail: {
+        why: "Without a meta description, Google pulls a random snippet of page text for search results — usually less compelling than a written one.",
+        suggested: '<meta name="description" content="One clear sentence on what this page offers, under 160 characters.">',
+      },
+      warn: {
+        why: "Descriptions over 160 characters get cut off in search results, hiding your call-to-action.",
+        suggested: "Trim to ~150-160 characters, front-load the key benefit in the first 120.",
+      },
+    },
+    canonical: {
+      fail: {
+        why: "Without a canonical tag, Google may see the same content at multiple URLs (with/without www, trailing slash, query params) as duplicates, splitting ranking signals.",
+        suggested: '<link rel="canonical" href="https://example.com/this-exact-page">',
+      },
+    },
+    robots: {
+      warn: {
+        why: '"noindex" or "nofollow" tells Google not to index or follow links on this page — fine if intentional, a problem if not.',
+        suggested: 'If this page should be indexed: <meta name="robots" content="index, follow">',
+      },
+    },
+  },
+  headings: {
+    h1Count: {
+      fail: {
+        why: "The H1 tells both users and Google what the page is primarily about. Missing or multiple H1s create ambiguity about the page's main topic.",
+        suggested: "Use exactly one <h1> describing the page's primary topic, e.g. <h1>Buy Running Shoes Online</h1>",
+      },
+    },
+    skippedLevels: {
+      fail: {
+        why: "Skipping heading levels (e.g. H2 straight to H4) breaks the logical document outline — hurts both accessibility (screen readers) and how Google parses page structure.",
+        suggested: "Keep headings sequential: H1 → H2 → H3 → H4, without skipping a level.",
+      },
+    },
+  },
+  images: {
+    altText: {
+      fail: {
+        why: "Alt text is read aloud by screen readers (accessibility) and also helps Google Images understand and rank your images.",
+        suggested: '<img src="shoe.png" alt="Red running shoes on white background">',
+      },
+    },
+    broken: {
+      fail: {
+        why: "Broken images hurt user experience and are a negative quality signal to Google's crawler.",
+        suggested: "Check the image URL/path — fix the source, or remove/replace the image if it's no longer available.",
+      },
+    },
+  },
+  links: {
+    links: {
+      fail: {
+        why: "Broken links (404s) frustrate users and are treated as a quality signal by Google — too many can affect crawl trust.",
+        suggested: "Fix the destination URL, set up a redirect, or remove the link if the target page no longer exists.",
+      },
+      warn: {
+        why: "Some links couldn't be verified — usually because the target site blocks cross-origin requests (CORS), not because they're actually broken.",
+        suggested: "Spot-check these manually by clicking them, since we can't confirm their status automatically.",
+      },
+    },
+  },
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   setupCollapsibleCategories();
   setupRunAudit();
   setupLocateButtons();
+  setupFixButtons();
 });
 
 function setupCollapsibleCategories() {
@@ -117,6 +198,17 @@ function renderCategoryResults(categoryKey, checkOrder, results) {
     row.setAttribute("title", result.detail);
 
     if (result.state === "pass") passCount++;
+
+    // Show the Fix button only when a static suggestion exists for this
+    // exact category/check/state combo (pass states never have one).
+    const fixBtn = row.querySelector(".fix-btn");
+    if (fixBtn) {
+      const suggestion = FIX_SUGGESTIONS[categoryKey]?.[key]?.[result.state];
+      fixBtn.hidden = !suggestion;
+      // Close any open fix panel when results change (fresh audit run) so
+      // stale suggestions don't linger.
+      closeFixPanel(row);
+    }
   });
 
   document.querySelector(`.category-count[data-count="${categoryKey}"]`).textContent =
@@ -127,24 +219,27 @@ function setupLocateButtons() {
   document.querySelectorAll(".locate-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const target = btn.dataset.locate;
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab) return;
 
-      const originalLabel = btn.textContent;
-      btn.textContent = "…";
-      btn.disabled = true;
-
-      chrome.tabs.sendMessage(tab.id, { type: "LOCATE_ELEMENT", target }, (response) => {
-        btn.textContent = originalLabel;
-        btn.disabled = false;
-
-        if (chrome.runtime.lastError) {
-          console.error(chrome.runtime.lastError.message);
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab) {
+          console.error("Locate: no active tab found");
           return;
         }
-        // Popup closes automatically when the tab is focused/scrolled to in
-        // some Chrome versions — that's expected, the highlight still shows.
-      });
+
+        chrome.tabs.sendMessage(tab.id, { type: "LOCATE_ELEMENT", target }, () => {
+          if (chrome.runtime.lastError) {
+            console.error("Locate sendMessage error:", chrome.runtime.lastError.message);
+          }
+        });
+      } catch (err) {
+        console.error("Locate click failed:", err);
+      } finally {
+        // Always close, even if something above threw — otherwise a
+        // content-script-side error leaves the popup stuck open covering
+        // the page where the highlight would show.
+        window.close();
+      }
     });
   });
 }
@@ -153,6 +248,76 @@ function toggleLocateButton(target, shouldShow) {
   const btn = document.querySelector(`.locate-btn[data-locate="${target}"]`);
   if (!btn) return;
   btn.hidden = !shouldShow;
+}
+
+function setupFixButtons() {
+  document.querySelectorAll(".fix-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = btn.closest(".check-row");
+      const existingPanel = row.nextElementSibling?.classList?.contains("fix-panel")
+        ? row.nextElementSibling
+        : null;
+
+      if (existingPanel) {
+        closeFixPanel(row);
+        return;
+      }
+
+      const [category, checkKey] = btn.dataset.fix.split(".");
+      // Read the state we just rendered onto the row (state-fail/state-warn)
+      const state = row.classList.contains("state-fail")
+        ? "fail"
+        : row.classList.contains("state-warn")
+        ? "warn"
+        : null;
+      const suggestion = FIX_SUGGESTIONS[category]?.[checkKey]?.[state];
+      if (!suggestion) return;
+
+      openFixPanel(row, suggestion);
+    });
+  });
+}
+
+function openFixPanel(row, suggestion) {
+  const panel = document.createElement("div");
+  panel.className = "fix-panel";
+  panel.innerHTML = `
+    <div class="fix-why"><strong>Why:</strong> ${escapeHtml(suggestion.why)}</div>
+    <div class="fix-suggested-label"><strong>Suggested fix:</strong></div>
+    <pre class="fix-suggested-text"></pre>
+    <button class="fix-copy-btn" type="button">Copy</button>
+  `;
+  // Set suggested text via textContent (not innerHTML) so any special
+  // characters in code snippets render literally and can't break the page.
+  panel.querySelector(".fix-suggested-text").textContent = suggestion.suggested;
+
+  const copyBtn = panel.querySelector(".fix-copy-btn");
+  copyBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(suggestion.suggested).then(() => {
+      const original = copyBtn.textContent;
+      copyBtn.textContent = "Copied!";
+      copyBtn.classList.add("fix-copy-btn--done");
+      setTimeout(() => {
+        copyBtn.textContent = original;
+        copyBtn.classList.remove("fix-copy-btn--done");
+      }, 1500);
+    });
+  });
+
+  row.insertAdjacentElement("afterend", panel);
+}
+
+function closeFixPanel(row) {
+  const next = row.nextElementSibling;
+  if (next && next.classList.contains("fix-panel")) {
+    next.remove();
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 function renderCharCounter(checkKey, result) {

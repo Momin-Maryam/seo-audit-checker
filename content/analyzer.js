@@ -160,6 +160,13 @@ function checkSkippedHeadingLevels() {
 function analyzeImages() {
   const images = Array.from(document.querySelectorAll("img"));
 
+  // Clear any tags left over from a previous audit run so Locate always
+  // matches what THIS run actually flagged, not a stale run.
+  images.forEach((img) => {
+    img.removeAttribute("data-seo-audit-missing-alt");
+    img.removeAttribute("data-seo-audit-broken");
+  });
+
   return Promise.all([checkAltText(images), checkBrokenImages(images)]).then(
     ([altText, broken]) => ({ altText, broken })
   );
@@ -179,6 +186,8 @@ function checkAltText(images) {
     return { state: "pass", detail: `All ${images.length} images have alt text.` };
   }
 
+  missing.forEach((img) => img.setAttribute("data-seo-audit-missing-alt", "true"));
+
   const sample = missing
     .slice(0, 3)
     .map((img) => img.getAttribute("src") || "(no src)")
@@ -190,39 +199,18 @@ function checkAltText(images) {
   };
 }
 
+// Checks whether each image actually loads by forcing a fresh network
+// request via a new Image() object, rather than trusting the original
+// element's .complete/.naturalWidth — those can be misleading for
+// lazy-loaded images that simply haven't triggered their real load yet
+// (browsers can report complete=true, naturalWidth=0 for a perfectly
+// valid lazy image before it scrolls into view).
 function checkBrokenImages(images) {
   if (images.length === 0) {
     return Promise.resolve({ state: "pass", detail: "No images on this page." });
   }
 
-  const checks = images.map((img) => {
-    // Already finished loading (most images by the time the audit runs)
-    if (img.complete) {
-      return Promise.resolve({ img, broken: img.naturalWidth === 0 });
-    }
-    // Still loading — wait briefly for it to settle
-    return new Promise((resolve) => {
-      const onLoad = () => {
-        cleanup();
-        resolve({ img, broken: false });
-      };
-      const onError = () => {
-        cleanup();
-        resolve({ img, broken: true });
-      };
-      const cleanup = () => {
-        img.removeEventListener("load", onLoad);
-        img.removeEventListener("error", onError);
-      };
-      img.addEventListener("load", onLoad);
-      img.addEventListener("error", onError);
-      // Safety timeout in case neither event fires
-      setTimeout(() => {
-        cleanup();
-        resolve({ img, broken: img.naturalWidth === 0 });
-      }, 3000);
-    });
-  });
+  const checks = images.map((img) => verifyImageLoads(img));
 
   return Promise.all(checks).then((results) => {
     const broken = results.filter((r) => r.broken).map((r) => r.img);
@@ -230,6 +218,8 @@ function checkBrokenImages(images) {
     if (broken.length === 0) {
       return { state: "pass", detail: `All ${images.length} images loaded successfully.` };
     }
+
+    broken.forEach((img) => img.setAttribute("data-seo-audit-broken", "true"));
 
     const sample = broken
       .slice(0, 3)
@@ -240,6 +230,29 @@ function checkBrokenImages(images) {
       state: "fail",
       detail: `${broken.length} of ${images.length} images failed to load. e.g. ${sample}`,
     };
+  });
+}
+
+function verifyImageLoads(img) {
+  const src = img.currentSrc || img.src;
+
+  if (!src) {
+    return Promise.resolve({ img, broken: true });
+  }
+
+  return new Promise((resolve) => {
+    const tester = new Image();
+    const timeout = setTimeout(() => resolve({ img, broken: true }), 5000);
+
+    tester.onload = () => {
+      clearTimeout(timeout);
+      resolve({ img, broken: false });
+    };
+    tester.onerror = () => {
+      clearTimeout(timeout);
+      resolve({ img, broken: true });
+    };
+    tester.src = src;
   });
 }
 
@@ -305,9 +318,17 @@ function checkOneLink(url) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), LINK_CHECK_TIMEOUT_MS);
 
-  return fetch(url, { method: "HEAD", signal: controller.signal, redirect: "follow" })
+  // Using GET rather than HEAD — a fair number of servers (especially
+  // simple/static ones) respond incorrectly to HEAD requests, returning
+  // 200 for paths that would actually 404 on GET. GET is slightly heavier
+  // but much more reliable for genuinely detecting broken links.
+  return fetch(url, { method: "GET", signal: controller.signal, redirect: "follow" })
     .then((res) => {
       clearTimeout(timeout);
+      // We only need the status, not the body — cancel the stream if the
+      // browser supports it, to avoid downloading full page content for
+      // every link on the page.
+      res.body?.cancel?.().catch(() => {});
       if (res.status >= 400) {
         return { url, status: "broken" };
       }
@@ -350,40 +371,42 @@ const HIGHLIGHT_DURATION_MS = 2500;
 let highlightOverlay = null;
 
 function locateElement(target) {
-  let el = null;
+  try {
+    let el = null;
 
-  switch (target) {
-    case "title":
-      // <title> itself isn't visible/scrollable — nothing to highlight
-      return false;
-    case "h1":
-      el = document.querySelector("h1");
-      break;
-    case "canonical":
-      el = document.querySelector('link[rel="canonical"]');
-      break;
-    case "missingAlt":
-      el = Array.from(document.querySelectorAll("img")).find((img) => {
-        const alt = img.getAttribute("alt");
-        return alt === null || alt.trim() === "";
-      });
-      break;
-    case "brokenImage":
-      el = Array.from(document.querySelectorAll("img")).find((img) => img.complete && img.naturalWidth === 0);
-      break;
-    default:
-      return false;
+    switch (target) {
+      case "title":
+        // <title> itself isn't visible/scrollable — nothing to highlight
+        return false;
+      case "h1":
+        el = document.querySelector("h1");
+        break;
+      case "canonical":
+        el = document.querySelector('link[rel="canonical"]');
+        break;
+      case "missingAlt":
+        el = document.querySelector('img[data-seo-audit-missing-alt="true"]');
+        break;
+      case "brokenImage":
+        el = document.querySelector('img[data-seo-audit-broken="true"]');
+        break;
+      default:
+        return false;
+    }
+
+    if (!el) return false;
+
+    // <link rel="canonical"> lives in <head> and isn't rendered/visible, so
+    // there's nothing on-page to scroll to or outline for it.
+    if (el.tagName === "LINK") return false;
+
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    showHighlight(el);
+    return true;
+  } catch (err) {
+    console.error("locateElement failed:", err);
+    return false;
   }
-
-  if (!el) return false;
-
-  // <link rel="canonical"> lives in <head> and isn't rendered/visible, so
-  // there's nothing on-page to scroll to or outline for it.
-  if (el.tagName === "LINK") return false;
-
-  el.scrollIntoView({ behavior: "smooth", block: "center" });
-  showHighlight(el);
-  return true;
 }
 
 function showHighlight(el) {

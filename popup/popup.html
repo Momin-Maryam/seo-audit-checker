@@ -55,19 +55,23 @@
           <span class="badge badge-pending"></span>
           <span class="check-text">Meta title present &amp; unique</span>
           <span class="char-counter" data-counter="title"></span>
+          <button class="fix-btn" data-fix="meta.title" hidden>Fix</button>
         </div>
         <div class="check-row" data-check="description">
           <span class="badge badge-pending"></span>
           <span class="check-text">Meta description present &amp; unique</span>
           <span class="char-counter" data-counter="description"></span>
+          <button class="fix-btn" data-fix="meta.description" hidden>Fix</button>
         </div>
-        <div class="check-row">
+        <div class="check-row" data-check="canonical">
           <span class="badge badge-pending"></span>
           <span class="check-text">Canonical tag present</span>
+          <button class="fix-btn" data-fix="meta.canonical" hidden>Fix</button>
         </div>
-        <div class="check-row">
+        <div class="check-row" data-check="robots">
           <span class="badge badge-pending"></span>
           <span class="check-text">Robots meta tag status</span>
+          <button class="fix-btn" data-fix="meta.robots" hidden>Fix</button>
         </div>
       </div>
     </section>
@@ -86,11 +90,13 @@
         <div class="check-row" data-check="h1">
           <span class="badge badge-pending"></span>
           <span class="check-text">Exactly one H1 present</span>
+          <button class="fix-btn" data-fix="headings.h1Count" hidden>Fix</button>
           <button class="locate-btn" data-locate="h1" hidden>Locate</button>
         </div>
-        <div class="check-row">
+        <div class="check-row" data-check="skippedLevels">
           <span class="badge badge-pending"></span>
           <span class="check-text">No skipped heading levels</span>
+          <button class="fix-btn" data-fix="headings.skippedLevels" hidden>Fix</button>
         </div>
       </div>
     </section>
@@ -109,11 +115,13 @@
         <div class="check-row" data-check="altText">
           <span class="badge badge-pending"></span>
           <span class="check-text">All images have alt text</span>
+          <button class="fix-btn" data-fix="images.altText" hidden>Fix</button>
           <button class="locate-btn" data-locate="missingAlt" hidden>Locate</button>
         </div>
         <div class="check-row" data-check="broken">
           <span class="badge badge-pending"></span>
           <span class="check-text">No broken images</span>
+          <button class="fix-btn" data-fix="images.broken" hidden>Fix</button>
           <button class="locate-btn" data-locate="brokenImage" hidden>Locate</button>
         </div>
       </div>
@@ -133,6 +141,7 @@
         <div class="check-row">
           <span class="badge badge-pending"></span>
           <span class="check-text">No broken links on page</span>
+          <button class="fix-btn" data-fix="links.links" hidden>Fix</button>
         </div>
       </div>
     </section>

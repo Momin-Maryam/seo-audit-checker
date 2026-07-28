@@ -51,13 +51,15 @@
         <span class="chevron">⌄</span>
       </button>
       <div class="category-body">
-        <div class="check-row">
+        <div class="check-row" data-check="title">
           <span class="badge badge-pending"></span>
           <span class="check-text">Meta title present &amp; unique</span>
+          <span class="char-counter" data-counter="title"></span>
         </div>
-        <div class="check-row">
+        <div class="check-row" data-check="description">
           <span class="badge badge-pending"></span>
           <span class="check-text">Meta description present &amp; unique</span>
+          <span class="char-counter" data-counter="description"></span>
         </div>
         <div class="check-row">
           <span class="badge badge-pending"></span>
@@ -81,9 +83,10 @@
         <span class="chevron">⌄</span>
       </button>
       <div class="category-body">
-        <div class="check-row">
+        <div class="check-row" data-check="h1">
           <span class="badge badge-pending"></span>
           <span class="check-text">Exactly one H1 present</span>
+          <button class="locate-btn" data-locate="h1" hidden>Locate</button>
         </div>
         <div class="check-row">
           <span class="badge badge-pending"></span>
@@ -103,13 +106,15 @@
         <span class="chevron">⌄</span>
       </button>
       <div class="category-body">
-        <div class="check-row">
+        <div class="check-row" data-check="altText">
           <span class="badge badge-pending"></span>
           <span class="check-text">All images have alt text</span>
+          <button class="locate-btn" data-locate="missingAlt" hidden>Locate</button>
         </div>
-        <div class="check-row">
+        <div class="check-row" data-check="broken">
           <span class="badge badge-pending"></span>
           <span class="check-text">No broken images</span>
+          <button class="locate-btn" data-locate="brokenImage" hidden>Locate</button>
         </div>
       </div>
     </section>

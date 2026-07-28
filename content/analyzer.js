@@ -24,6 +24,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     return true; // async response — sendResponse is called above once ready
   }
+
+  if (message.type === "LOCATE_ELEMENT") {
+    const found = locateElement(message.target);
+    sendResponse({ type: "LOCATE_RESULT", found });
+    return true;
+  }
   // Unrecognized message type — don't return true, since we're not going
   // to call sendResponse for it. Returning true here with no response is
   // what causes "message channel closed before a response was received".
@@ -41,42 +47,48 @@ function analyzeMetaTags() {
 function checkTitle() {
   const titleEl = document.querySelector("title");
   const text = titleEl ? titleEl.textContent.trim() : "";
+  const limit = 60;
 
   if (!text) {
-    return { state: "fail", detail: "No <title> tag found, or it's empty." };
+    return { state: "fail", detail: "No <title> tag found, or it's empty.", length: 0, limit };
   }
 
   const genericTitles = ["untitled", "untitled document", "new page", "home"];
   if (genericTitles.includes(text.toLowerCase())) {
-    return { state: "warn", detail: `Title looks generic: "${text}"` };
+    return { state: "warn", detail: `Title looks generic: "${text}"`, length: text.length, limit };
   }
 
-  if (text.length > 60) {
+  if (text.length > limit) {
     return {
       state: "warn",
-      detail: `Title is ${text.length} characters — may get truncated in search results (recommended ≤60).`,
+      detail: `Title is ${text.length} characters — may get truncated in search results (recommended ≤${limit}).`,
+      length: text.length,
+      limit,
     };
   }
 
-  return { state: "pass", detail: `"${text}" (${text.length} chars)` };
+  return { state: "pass", detail: `"${text}" (${text.length} chars)`, length: text.length, limit };
 }
 
 function checkDescription() {
   const metaDesc = document.querySelector('meta[name="description"]');
   const content = metaDesc ? metaDesc.getAttribute("content")?.trim() : "";
+  const limit = 160;
 
   if (!metaDesc || !content) {
-    return { state: "fail", detail: "No meta description found, or it's empty." };
+    return { state: "fail", detail: "No meta description found, or it's empty.", length: 0, limit };
   }
 
-  if (content.length > 160) {
+  if (content.length > limit) {
     return {
       state: "warn",
-      detail: `Description is ${content.length} characters — may get truncated (recommended ≤160).`,
+      detail: `Description is ${content.length} characters — may get truncated (recommended ≤${limit}).`,
+      length: content.length,
+      limit,
     };
   }
 
-  return { state: "pass", detail: `${content.length} characters` };
+  return { state: "pass", detail: `${content.length} characters`, length: content.length, limit };
 }
 
 function checkCanonical() {
@@ -332,6 +344,79 @@ function countVisibleWords() {
   const words = text.trim().split(/\s+/).filter(Boolean);
 
   return words.length;
+}
+
+const HIGHLIGHT_DURATION_MS = 2500;
+let highlightOverlay = null;
+
+function locateElement(target) {
+  let el = null;
+
+  switch (target) {
+    case "title":
+      // <title> itself isn't visible/scrollable — nothing to highlight
+      return false;
+    case "h1":
+      el = document.querySelector("h1");
+      break;
+    case "canonical":
+      el = document.querySelector('link[rel="canonical"]');
+      break;
+    case "missingAlt":
+      el = Array.from(document.querySelectorAll("img")).find((img) => {
+        const alt = img.getAttribute("alt");
+        return alt === null || alt.trim() === "";
+      });
+      break;
+    case "brokenImage":
+      el = Array.from(document.querySelectorAll("img")).find((img) => img.complete && img.naturalWidth === 0);
+      break;
+    default:
+      return false;
+  }
+
+  if (!el) return false;
+
+  // <link rel="canonical"> lives in <head> and isn't rendered/visible, so
+  // there's nothing on-page to scroll to or outline for it.
+  if (el.tagName === "LINK") return false;
+
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  showHighlight(el);
+  return true;
+}
+
+function showHighlight(el) {
+  if (highlightOverlay) {
+    highlightOverlay.remove();
+  }
+
+  const rect = el.getBoundingClientRect();
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position: fixed;
+    top: ${rect.top - 4}px;
+    left: ${rect.left - 4}px;
+    width: ${rect.width + 8}px;
+    height: ${rect.height + 8}px;
+    border: 3px solid #E2935B;
+    border-radius: 6px;
+    background: rgba(226, 147, 91, 0.15);
+    box-shadow: 0 0 0 4px rgba(226, 147, 91, 0.25);
+    pointer-events: none;
+    z-index: 2147483647;
+    transition: opacity 0.4s ease;
+  `;
+  document.body.appendChild(overlay);
+  highlightOverlay = overlay;
+
+  setTimeout(() => {
+    overlay.style.opacity = "0";
+    setTimeout(() => {
+      overlay.remove();
+      if (highlightOverlay === overlay) highlightOverlay = null;
+    }, 400);
+  }, HIGHLIGHT_DURATION_MS);
 }
 
 function checkRobots() {

@@ -274,6 +274,56 @@ body {
 
 .check-text {
   color: var(--text-main);
+  flex: 1;
+}
+
+.char-counter {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.char-counter:empty {
+  display: none;
+}
+
+.char-counter--ok {
+  color: var(--pass);
+  background: var(--pass-bg);
+}
+
+.char-counter--over {
+  color: var(--fail);
+  background: var(--fail-bg);
+}
+
+.locate-btn {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  background: #fff;
+  border: 1px solid var(--accent);
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.locate-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.locate-btn[hidden] {
+  display: none;
+}
+
+.locate-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .badge {

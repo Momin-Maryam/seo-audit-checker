@@ -9,6 +9,7 @@ const LINKS_CHECK_ORDER = ["links"];
 document.addEventListener("DOMContentLoaded", () => {
   setupCollapsibleCategories();
   setupRunAudit();
+  setupLocateButtons();
 });
 
 function setupCollapsibleCategories() {
@@ -59,8 +60,13 @@ async function runAudit() {
 
       if (response && response.type === "AUDIT_RESULT") {
         renderCategoryResults("meta", META_CHECK_ORDER, response.results.meta);
+        renderCharCounter("title", response.results.meta.title);
+        renderCharCounter("description", response.results.meta.description);
         renderCategoryResults("headings", HEADINGS_CHECK_ORDER, response.results.headings);
+        toggleLocateButton("h1", response.results.headings.h1Count.state === "pass");
         renderCategoryResults("images", IMAGES_CHECK_ORDER, response.results.images);
+        toggleLocateButton("missingAlt", response.results.images.altText.state === "fail");
+        toggleLocateButton("brokenImage", response.results.images.broken.state === "fail");
         // Links only has one check, so analyzer.js returns it directly
         // rather than nested under a key — wrap it here to fit the same
         // generic renderer used by every other category.
@@ -115,6 +121,49 @@ function renderCategoryResults(categoryKey, checkOrder, results) {
 
   document.querySelector(`.category-count[data-count="${categoryKey}"]`).textContent =
     `${passCount}/${rows.length} passed`;
+}
+
+function setupLocateButtons() {
+  document.querySelectorAll(".locate-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const target = btn.dataset.locate;
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) return;
+
+      const originalLabel = btn.textContent;
+      btn.textContent = "…";
+      btn.disabled = true;
+
+      chrome.tabs.sendMessage(tab.id, { type: "LOCATE_ELEMENT", target }, (response) => {
+        btn.textContent = originalLabel;
+        btn.disabled = false;
+
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError.message);
+          return;
+        }
+        // Popup closes automatically when the tab is focused/scrolled to in
+        // some Chrome versions — that's expected, the highlight still shows.
+      });
+    });
+  });
+}
+
+function toggleLocateButton(target, shouldShow) {
+  const btn = document.querySelector(`.locate-btn[data-locate="${target}"]`);
+  if (!btn) return;
+  btn.hidden = !shouldShow;
+}
+
+function renderCharCounter(checkKey, result) {
+  if (!result || result.length === undefined) return;
+
+  const counterEl = document.querySelector(`.char-counter[data-counter="${checkKey}"]`);
+  if (!counterEl) return;
+
+  counterEl.textContent = `${result.length}/${result.limit}`;
+  counterEl.classList.remove("char-counter--ok", "char-counter--over");
+  counterEl.classList.add(result.length > result.limit ? "char-counter--over" : "char-counter--ok");
 }
 
 function renderPageInfo(pageInfo) {

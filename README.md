@@ -1,6 +1,6 @@
 # SEO Audit Checker
  
-Chrome extension for a quick on-page SEO check — no paid tools needed.
+Chrome extension for a quick on-page SEO check, no paid tools needed.
  
 ## Features
  

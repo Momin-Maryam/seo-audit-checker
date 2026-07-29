@@ -314,8 +314,10 @@ body {
 
 .check-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  row-gap: 6px;
   font-size: 12.5px;
   padding: 6px 8px;
   border-radius: var(--radius-md);
@@ -395,6 +397,88 @@ body {
 
 .fix-btn[hidden] {
   display: none;
+}
+
+.list-btn {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  background: #fff;
+  border: 1px solid var(--pending);
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.list-btn:hover {
+  background: var(--pending-bg);
+}
+
+.list-btn[hidden] {
+  display: none;
+}
+
+.list-panel {
+  margin: -2px 0 8px 0;
+  padding: 10px 12px;
+  background: #FAFAF8;
+  border: 1px dashed var(--card-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.list-item-src {
+  flex: 1;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-copy-btn {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  background: #fff;
+  border: 1px solid var(--accent);
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.list-copy-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.list-copy-btn--done {
+  background: var(--pass);
+  border-color: var(--pass);
+  color: #fff;
+}
+
+.list-more {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: center;
+  padding-top: 2px;
 }
 
 .fix-panel {
@@ -528,8 +612,37 @@ body {
 
 /* Footer */
 .footer {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.footer-version {
   font-size: 10.5px;
   color: var(--text-muted);
-  padding-top: 2px;
+}
+
+.download-report-btn {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  background: #fff;
+  border: 1px solid var(--card-border);
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.download-report-btn:hover:not(:disabled) {
+  background: var(--pending-bg);
+  border-color: var(--accent);
+}
+
+.download-report-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }

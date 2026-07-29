@@ -132,12 +132,14 @@
           <span class="badge badge-pending"></span>
           <span class="check-text">All images have alt text</span>
           <button class="fix-btn" data-fix="images.altText" hidden>Fix</button>
+          <button class="list-btn" data-list="altText" hidden>List</button>
           <button class="locate-btn" data-locate="missingAlt" hidden>Locate</button>
         </div>
         <div class="check-row" data-check="broken">
           <span class="badge badge-pending"></span>
           <span class="check-text">No broken images</span>
           <button class="fix-btn" data-fix="images.broken" hidden>Fix</button>
+          <button class="list-btn" data-list="broken" hidden>List</button>
           <button class="locate-btn" data-locate="brokenImage" hidden>Locate</button>
         </div>
       </div>
@@ -171,7 +173,10 @@
     </section>
 
     <footer class="footer">
-      <span>SEO Audit Checker · Maryam</span>
+      <button class="download-report-btn" id="downloadReportBtn" disabled>
+        ⬇ Download Report
+      </button>
+      <span class="footer-version">SEO Audit Checker · v1.0</span>
     </footer>
 
   </div>

@@ -172,9 +172,22 @@ function analyzeImages() {
   );
 }
 
+// Builds a simple, practical CSS selector for an image — prefers the src
+// attribute (usually unique enough per-image), falls back to nth-of-type
+// if there's no src to key off of.
+function buildImageSelector(img) {
+  const src = img.getAttribute("src");
+  if (src) {
+    return `img[src="${src}"]`;
+  }
+  const allImages = Array.from(document.querySelectorAll("img"));
+  const index = allImages.indexOf(img) + 1;
+  return `img:nth-of-type(${index})`;
+}
+
 function checkAltText(images) {
   if (images.length === 0) {
-    return { state: "pass", detail: "No images on this page." };
+    return { state: "pass", detail: "No images on this page.", items: [] };
   }
 
   const missing = images.filter((img) => {
@@ -183,19 +196,20 @@ function checkAltText(images) {
   });
 
   if (missing.length === 0) {
-    return { state: "pass", detail: `All ${images.length} images have alt text.` };
+    return { state: "pass", detail: `All ${images.length} images have alt text.`, items: [] };
   }
 
   missing.forEach((img) => img.setAttribute("data-seo-audit-missing-alt", "true"));
 
-  const sample = missing
-    .slice(0, 3)
-    .map((img) => img.getAttribute("src") || "(no src)")
-    .join(", ");
+  const items = missing.map((img) => ({
+    src: img.getAttribute("src") || "(no src)",
+    selector: buildImageSelector(img),
+  }));
 
   return {
     state: "fail",
-    detail: `${missing.length} of ${images.length} images missing alt text. e.g. ${sample}`,
+    detail: `${missing.length} of ${images.length} images missing alt text.`,
+    items,
   };
 }
 
@@ -207,7 +221,7 @@ function checkAltText(images) {
 // valid lazy image before it scrolls into view).
 function checkBrokenImages(images) {
   if (images.length === 0) {
-    return Promise.resolve({ state: "pass", detail: "No images on this page." });
+    return Promise.resolve({ state: "pass", detail: "No images on this page.", items: [] });
   }
 
   const checks = images.map((img) => verifyImageLoads(img));
@@ -216,19 +230,20 @@ function checkBrokenImages(images) {
     const broken = results.filter((r) => r.broken).map((r) => r.img);
 
     if (broken.length === 0) {
-      return { state: "pass", detail: `All ${images.length} images loaded successfully.` };
+      return { state: "pass", detail: `All ${images.length} images loaded successfully.`, items: [] };
     }
 
     broken.forEach((img) => img.setAttribute("data-seo-audit-broken", "true"));
 
-    const sample = broken
-      .slice(0, 3)
-      .map((img) => img.getAttribute("src") || "(no src)")
-      .join(", ");
+    const items = broken.map((img) => ({
+      src: img.getAttribute("src") || "(no src)",
+      selector: buildImageSelector(img),
+    }));
 
     return {
       state: "fail",
-      detail: `${broken.length} of ${images.length} images failed to load. e.g. ${sample}`,
+      detail: `${broken.length} of ${images.length} images failed to load.`,
+      items,
     };
   });
 }

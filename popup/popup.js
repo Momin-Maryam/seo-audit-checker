@@ -91,6 +91,8 @@ document.addEventListener("DOMContentLoaded", () => {
   setupRunAudit();
   setupLocateButtons();
   setupFixButtons();
+  setupListButtons();
+  setupDownloadReport();
 });
 
 function setupCollapsibleCategories() {
@@ -148,12 +150,19 @@ async function runAudit() {
         renderCategoryResults("images", IMAGES_CHECK_ORDER, response.results.images);
         toggleLocateButton("missingAlt", response.results.images.altText.state === "fail");
         toggleLocateButton("brokenImage", response.results.images.broken.state === "fail");
+        toggleListButton("altText", response.results.images.altText);
+        toggleListButton("broken", response.results.images.broken);
         // Links only has one check, so analyzer.js returns it directly
         // rather than nested under a key — wrap it here to fit the same
         // generic renderer used by every other category.
         renderCategoryResults("links", LINKS_CHECK_ORDER, { links: response.results.links });
         renderPageInfo(response.results.pageInfo);
         updateOverallScore();
+
+        // Save everything the report needs, and enable the download button
+        // now that there's a real audit to export.
+        lastAuditResults = { results: response.results, pageUrl: tab.url, pageTitle: tab.title };
+        document.getElementById("downloadReportBtn").disabled = false;
       }
     }
   );
@@ -242,6 +251,99 @@ function setupLocateButtons() {
       }
     });
   });
+}
+
+// Holds the current run's flagged-image items, keyed by check name, so the
+// List button's click handler can render them without re-querying the page.
+let currentImageItems = { altText: [], broken: [] };
+
+// Holds the most recent full audit results + page context, so Download
+// Report can build a file without re-running the audit.
+let lastAuditResults = null;
+
+function toggleListButton(checkKey, result) {
+  const btn = document.querySelector(`.list-btn[data-list="${checkKey}"]`);
+  if (!btn) return;
+
+  const hasItems = result && result.items && result.items.length > 0;
+  btn.hidden = !hasItems;
+  currentImageItems[checkKey] = hasItems ? result.items : [];
+
+  // Close any open panel for this row when fresh results come in.
+  const row = btn.closest(".check-row");
+  closeListPanel(row);
+}
+
+function setupListButtons() {
+  document.querySelectorAll(".list-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = btn.closest(".check-row");
+      const existingPanel = row.nextElementSibling?.classList?.contains("list-panel")
+        ? row.nextElementSibling
+        : null;
+
+      if (existingPanel) {
+        closeListPanel(row);
+        return;
+      }
+
+      const checkKey = btn.dataset.list;
+      const items = currentImageItems[checkKey] || [];
+      openListPanel(row, items);
+    });
+  });
+}
+
+function openListPanel(row, items) {
+  const panel = document.createElement("div");
+  panel.className = "list-panel";
+
+  const maxShown = 10;
+  items.slice(0, maxShown).forEach((item) => {
+    const itemEl = document.createElement("div");
+    itemEl.className = "list-item";
+
+    const srcEl = document.createElement("span");
+    srcEl.className = "list-item-src";
+    srcEl.textContent = item.src;
+    srcEl.title = item.src;
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "list-copy-btn";
+    copyBtn.type = "button";
+    copyBtn.textContent = "Copy selector";
+    copyBtn.addEventListener("click", () => {
+      navigator.clipboard.writeText(item.selector).then(() => {
+        const original = copyBtn.textContent;
+        copyBtn.textContent = "Copied!";
+        copyBtn.classList.add("list-copy-btn--done");
+        setTimeout(() => {
+          copyBtn.textContent = original;
+          copyBtn.classList.remove("list-copy-btn--done");
+        }, 1500);
+      });
+    });
+
+    itemEl.appendChild(srcEl);
+    itemEl.appendChild(copyBtn);
+    panel.appendChild(itemEl);
+  });
+
+  if (items.length > maxShown) {
+    const more = document.createElement("div");
+    more.className = "list-more";
+    more.textContent = `+ ${items.length - maxShown} more not shown`;
+    panel.appendChild(more);
+  }
+
+  row.insertAdjacentElement("afterend", panel);
+}
+
+function closeListPanel(row) {
+  const next = row.nextElementSibling;
+  if (next && next.classList.contains("list-panel")) {
+    next.remove();
+  }
 }
 
 function toggleLocateButton(target, shouldShow) {
@@ -360,4 +462,119 @@ function updateScoreDial(score) {
   const offset = circumference - (circumference * score) / 100;
   document.getElementById("dialProgress").style.strokeDashoffset = offset;
   document.getElementById("scoreValue").textContent = score;
+}
+
+// Human-readable labels for each check, mirroring the text shown in the
+// popup UI, so the report reads the same way the extension does.
+const CHECK_LABELS = {
+  meta: {
+    title: "Meta title present & unique",
+    description: "Meta description present & unique",
+    canonical: "Canonical tag present",
+    robots: "Robots meta tag status",
+  },
+  headings: {
+    h1Count: "Exactly one H1 present",
+    skippedLevels: "No skipped heading levels",
+  },
+  images: {
+    altText: "All images have alt text",
+    broken: "No broken images",
+  },
+  links: {
+    links: "No broken links on page",
+  },
+};
+
+const STATE_ICON = { pass: "✅", fail: "❌", warn: "⚠️" };
+
+function setupDownloadReport() {
+  document.getElementById("downloadReportBtn").addEventListener("click", () => {
+    if (!lastAuditResults) return;
+    const markdown = buildMarkdownReport(lastAuditResults);
+    downloadTextFile(markdown, "seo-audit-report.md", "text/markdown");
+  });
+}
+
+function buildMarkdownReport({ results, pageUrl, pageTitle }) {
+  const allBadgeStates = [];
+  const lines = [];
+
+  lines.push(`# SEO Audit Report`);
+  lines.push("");
+  lines.push(`**Page:** ${pageTitle || "(untitled)"}`);
+  lines.push(`**URL:** ${pageUrl || "(unknown)"}`);
+  lines.push(`**Generated:** ${new Date().toLocaleString()}`);
+  lines.push("");
+
+  const categories = [
+    { key: "meta", title: "Meta Tags", order: META_CHECK_ORDER, data: results.meta },
+    { key: "headings", title: "Headings", order: HEADINGS_CHECK_ORDER, data: results.headings },
+    { key: "images", title: "Images", order: IMAGES_CHECK_ORDER, data: results.images },
+    { key: "links", title: "Links", order: LINKS_CHECK_ORDER, data: { links: results.links } },
+  ];
+
+  categories.forEach((category) => {
+    lines.push(`## ${category.title}`);
+    lines.push("");
+
+    category.order.forEach((checkKey) => {
+      const result = category.data[checkKey];
+      if (!result) return;
+
+      allBadgeStates.push(result.state);
+      const icon = STATE_ICON[result.state] || "•";
+      const label = CHECK_LABELS[category.key][checkKey];
+
+      lines.push(`- ${icon} **${label}**`);
+      if (result.detail) {
+        lines.push(`  - ${result.detail}`);
+      }
+
+      // Include the full flagged-item list for Images checks, not just the
+      // summary detail line — this is the same data the List button shows.
+      if (result.items && result.items.length > 0) {
+        result.items.forEach((item) => {
+          lines.push(`  - \`${item.src}\` — selector: \`${item.selector}\``);
+        });
+      }
+    });
+
+    lines.push("");
+  });
+
+  if (results.pageInfo) {
+    lines.push(`## Page Info`);
+    lines.push("");
+    lines.push(`- Word count: ${results.pageInfo.wordCount.toLocaleString()}`);
+    lines.push("");
+  }
+
+  const passCount = allBadgeStates.filter((s) => s === "pass").length;
+  const failCount = allBadgeStates.filter((s) => s === "fail").length;
+  const warnCount = allBadgeStates.filter((s) => s === "warn").length;
+  const score = Math.round((passCount / allBadgeStates.length) * 100);
+
+  lines.push(`---`);
+  lines.push(`**Score:** ${score}/100 · ✅ ${passCount} passed · ❌ ${failCount} critical · ⚠️ ${warnCount} warnings`);
+  lines.push("");
+  lines.push(`_Generated by SEO Audit Checker_`);
+
+  return lines.join("\n");
+}
+
+function downloadTextFile(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  // Release the object URL shortly after — the download has already been
+  // handed off to the browser by then.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

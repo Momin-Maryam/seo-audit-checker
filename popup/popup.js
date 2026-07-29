@@ -339,6 +339,8 @@ function renderPageInfo(pageInfo) {
 function updateOverallScore() {
   const allBadges = document.querySelectorAll(".badge");
   const passBadges = document.querySelectorAll(".badge-pass");
+  const failBadges = document.querySelectorAll(".badge-fail");
+  const warnBadges = document.querySelectorAll(".badge-warn");
   const score = Math.round((passBadges.length / allBadges.length) * 100);
 
   updateScoreDial(score);
@@ -347,6 +349,10 @@ function updateOverallScore() {
     score === 100
       ? "No issues found — nice work!"
       : "A few issues found — check the categories below.";
+
+  document.getElementById("criticalCount").textContent = failBadges.length;
+  document.getElementById("warningCount").textContent = warnBadges.length;
+  document.getElementById("passedCount").textContent = passBadges.length;
 }
 
 function updateScoreDial(score) {

@@ -197,6 +197,56 @@ body {
   font-size: 9px;
 }
 
+/* Priority summary */
+.priority-summary {
+  display: flex;
+  gap: 8px;
+}
+
+.priority-pill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--card-border);
+}
+
+.priority-count {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.priority-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.priority-critical {
+  background: var(--fail-bg);
+}
+.priority-critical .priority-count {
+  color: var(--fail);
+}
+
+.priority-warning {
+  background: var(--warn-bg);
+}
+.priority-warning .priority-count {
+  color: var(--warn);
+}
+
+.priority-passed {
+  background: var(--pass-bg);
+}
+.priority-passed .priority-count {
+  color: var(--pass);
+}
+
 /* Category cards */
 .category {
   background: var(--card);
